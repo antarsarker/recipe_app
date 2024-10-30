@@ -5,21 +5,88 @@ void main() {
   runApp(MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.light;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTheme();
+  }
+
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isDarkMode = prefs.getBool('isDarkMode') ?? false;
+    setState(() {
+      _themeMode = isDarkMode ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
+
+  Future<void> _toggleTheme(bool isDarkMode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDarkMode', isDarkMode);
+    setState(() {
+      _themeMode = isDarkMode ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Food Ordering App',
       theme: ThemeData(
         primarySwatch: Colors.green,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+        brightness: Brightness.light,
+        textTheme: TextTheme(
+          bodyLarge: TextStyle(color: Colors.black),
+          bodyMedium: TextStyle(color: Colors.black87),
+          titleLarge: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.green),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            foregroundColor: Colors.white,
+            backgroundColor: Colors.green,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
       ),
-      home: LoginPage(),
+      darkTheme: ThemeData(
+        primarySwatch: Colors.green,
+        brightness: Brightness.dark,
+        textTheme: TextTheme(
+          bodyLarge: TextStyle(color: Colors.white),
+          bodyMedium: TextStyle(color: Colors.white70),
+          titleLarge: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.greenAccent),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            foregroundColor: Colors.black,
+            backgroundColor: Colors.greenAccent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+      ),
+      themeMode: _themeMode,
+      home: LoginPage(toggleTheme: _toggleTheme, isDarkMode: _themeMode == ThemeMode.dark),
     );
   }
 }
 
 class LoginPage extends StatefulWidget {
+  final Function(bool) toggleTheme;
+  final bool isDarkMode;
+
+  LoginPage({required this.toggleTheme, required this.isDarkMode});
+
   @override
   _LoginPageState createState() => _LoginPageState();
 }
@@ -27,30 +94,20 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _isLogin = true; // State to toggle between login and signup
+  bool _isLogin = true;
 
   @override
   Widget build(BuildContext context) {
-    // Building the login/signup page without the image
     return Scaffold(
-      backgroundColor: Colors.white, // Background color
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Removed the image widget to avoid asset loading issues
-
               SizedBox(height: 20),
               Text(
                 _isLogin ? 'Login' : 'Sign Up',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green, // Text color matching the theme
-                ),
+                style: Theme.of(context).textTheme.titleLarge,
               ),
               SizedBox(height: 30),
               _buildTextField(_emailController, 'Email', Icons.email),
@@ -60,6 +117,21 @@ class _LoginPageState extends State<LoginPage> {
               _buildAuthButton(),
               SizedBox(height: 15),
               _buildToggleText(),
+              SizedBox(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: widget.isDarkMode ? null : () => widget.toggleTheme(true),
+                    child: Text('Dark Mode'),
+                  ),
+                  SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: widget.isDarkMode ? () => widget.toggleTheme(false) : null,
+                    child: Text('Light Mode'),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -67,27 +139,26 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Build TextFields for Email and Password with Icons
   Widget _buildTextField(
       TextEditingController controller, String label, IconData icon, {bool obscureText = false}) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
+      style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
       decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.green), // Leading icon in textfield
+        prefixIcon: Icon(icon, color: Colors.green),
         labelText: label,
-        labelStyle: TextStyle(color: Colors.grey[600]),
+        labelStyle: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
         filled: true,
-        fillColor: Colors.grey[200],
+        fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[200],
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: BorderSide.none, // No border for cleaner look
+          borderSide: BorderSide.none,
         ),
       ),
     );
   }
 
-  // Build Login/Signup Button
   Widget _buildAuthButton() {
     return ElevatedButton(
       onPressed: _isLogin ? _login : _signUp,
@@ -96,16 +167,11 @@ class _LoginPageState extends State<LoginPage> {
         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       ),
       style: ElevatedButton.styleFrom(
-        minimumSize: Size(double.infinity, 50), // Button width matches the screen width
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        backgroundColor: Colors.green, // Button color
+        minimumSize: Size(double.infinity, 50),
       ),
     );
   }
 
-  // Build the Text for switching between Login and Sign Up
   Widget _buildToggleText() {
     return TextButton(
       onPressed: () {
@@ -120,7 +186,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Core login function (unchanged)
   void _login() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     String? storedPassword = prefs.getString(_emailController.text);
@@ -134,18 +199,15 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // Core signup function (unchanged)
   void _signUp() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setString(_emailController.text, _passwordController.text);
-    // Initialize orders for new user
     prefs.setStringList('${_emailController.text}_orders', []);
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => DashboardPage(email: _emailController.text)),
     );
   }
 
-  // Core error display function (unchanged)
   void _showError(String message) {
     showDialog(
       context: context,
@@ -165,8 +227,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// Dashboard and Profile page implementations remain unchanged
-
 class DashboardPage extends StatefulWidget {
   final String email;
 
@@ -178,7 +238,7 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   List<String> foodItems = ['Pizza', 'Burger', 'Pasta', 'Sushi', 'Salad', 'Tacos', 'Steak', 'Ice Cream'];
-  List<int> ordersCount = List.filled(8, 0); // To track orders for each food item
+  List<int> ordersCount = List.filled(8, 0);
 
   @override
   Widget build(BuildContext context) {
@@ -208,7 +268,10 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(foodItems[index], style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(
+                  foodItems[index],
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color),
+                ),
                 SizedBox(height: 10),
                 ElevatedButton(
                   onPressed: () {
@@ -218,11 +281,11 @@ class _DashboardPageState extends State<DashboardPage> {
                     _saveOrder(foodItems[index]);
                   },
                   child: Text('Order'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green, // Change made here
-                  ),
                 ),
-                Text('Ordered: ${ordersCount[index]} times'),
+                Text(
+                  'Ordered: ${ordersCount[index]} times',
+                  style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+                ),
               ],
             ),
           );
@@ -275,15 +338,14 @@ class ProfilePage extends StatelessWidget {
                   SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () {
-                      // Logout functionality
                       Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (context) => LoginPage()),
+                        MaterialPageRoute(builder: (context) => MyApp()),
                         (Route<dynamic> route) => false,
                       );
                     },
                     child: Text('Logout'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red, // Change made here for logout button
+                      backgroundColor: Colors.red,
                     ),
                   ),
                 ],
